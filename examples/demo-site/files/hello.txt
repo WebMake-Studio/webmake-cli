@@ -1,0 +1,3 @@
+Hello from WebMake CLI!
+This folder has no index.html, so the dev server shows a directory listing.
+Copyright (c) 2026 Rafael ISTE

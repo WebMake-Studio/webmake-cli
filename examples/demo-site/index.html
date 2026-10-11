@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WebMake CLI demo</title>
+  <!-- Copyright (c) 2026 Rafael ISTE. Released under the MIT License. -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="/">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5 7 18.5l4-9 4 9 4.5-13"/></svg>
+        WebMake CLI
+      </a>
+      <div class="menu">
+        <a href="/about">About</a>
+        <a href="/blog/hello-world">Blog</a>
+        <a href="/files/">Files</a>
+        <a href="/__webmake/routes">Routes</a>
+      </div>
+    </nav>
+
+    <h1>Build the <span class="accent">extraordinary</span> on the web.</h1>
+    <p class="lead">This page is served by <code>webmake dev</code>. Edit <code>css/style.css</code> and watch the colors change instantly, without a reload.</p>
+    <div class="actions">
+      <a class="btn" href="/about">Clean URL: /about</a>
+      <a class="btn ghost" href="/old-page">Redirect: /old-page</a>
+      <a class="btn ghost" href="/does-not-exist">Custom 404</a>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>0</b><span>Dependencies</span></div>
+      <div class="stat"><b>7</b><span>Config formats</span></div>
+      <div class="stat"><b>8888</b><span>Default port</span></div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><h3>Redirects</h3><p><code>_redirects</code> in this folder redirects <code>/old-page</code> to <code>/about</code>.</p></div>
+      <div class="card"><h3>Rewrites</h3><p><code>/blog/*</code> is rewritten to <code>blog.html</code> with status 200.</p></div>
+      <div class="card"><h3>Headers</h3><p><code>_headers</code> adds <code>X-Demo</code> to every response. Check your browser's network tab.</p></div>
+    </div>
+
+    <footer>© 2026 FarTekTV · Rafael ISTE</footer>
+  </div>
+</body>
+</html>

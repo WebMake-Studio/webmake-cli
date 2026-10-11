@@ -1,43 +1,51 @@
 {
-    "name": "webmake-cli",
-    "version": "1.0.0",
-    "description": "WebMake Studio - Local dev server, build toolkit and deploy CLI",
-    "keywords": [
-        "webmake",
-        "dev-server",
-        "cli",
-        "livereload",
-        "static-server"
-    ],
-    "license": "MIT",
-    "author": "WebMake Studio",
-    "type": "commonjs",
-    "main": "./src/index.js",
-    "bin": {
-        "webmake": "bin/webmake.js"
-    },
-    "files": [
-        "bin",
-        "src",
-        "scripts",
-        "README.md",
-        "package.json"
-    ],
-    "publishConfig": {
-        "access": "public"
-    },
-    "scripts": {
-        "start": "node bin/webmake.js dev",
-        "link": "npm link",
-        "pack:check": "npm pack --dry-run"
-    },
-    "dependencies": {
-        "chokidar": "^3.6.0",
-        "dotenv": "^16.4.5",
-        "webmake-cli": "^1.0.0",
-        "ws": "^8.17.0"
-    },
-    "engines": {
-        "node": ">=18.0.0"
-    }
+  "name": "webmake-cli",
+  "version": "2.0.0",
+  "description": "WebMake CLI - a zero-dependency static dev server with live reload, SPA fallback and universal redirect support (_redirects, netlify.toml, vercel.json, firebase.json, staticwebapp.config.json, .htaccess).",
+  "keywords": [
+    "webmake",
+    "dev-server",
+    "static-server",
+    "live-reload",
+    "redirects",
+    "_redirects",
+    "netlify",
+    "spa",
+    "cli"
+  ],
+  "author": "Rafael ISTE",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WebMake-Studio/webmake-cli.git"
+  },
+  "homepage": "https://github.com/WebMake-Studio/webmake-cli#readme",
+  "bugs": {
+    "url": "https://github.com/WebMake-Studio/webmake-cli/issues"
+  },
+  "bin": {
+    "webmake": "bin/webmake.js",
+    "webmake-cli": "bin/webmake.js"
+  },
+  "main": "src/index.js",
+  "files": [
+    "bin",
+    "src",
+    "docs",
+    "examples",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "scripts": {
+    "start": "node bin/webmake.js dev",
+    "demo": "node bin/webmake.js dev examples/demo-site",
+    "test": "node test/run.js",
+    "prepublishOnly": "npm test"
+  },
+  "dependencies": {},
+  "devDependencies": {}
 }

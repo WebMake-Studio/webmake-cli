@@ -1,0 +1,75 @@
+/*!
+ * WebMake CLI demo site - stylesheet
+ * Copyright (c) 2026 Rafael ISTE. Released under the MIT License.
+ * Edit this file while "webmake dev" runs: styles hot-swap without a page reload.
+ */
+:root {
+  --bg: #ece9fe;
+  --ink: #14123a;
+  --soft: #5b5885;
+  --accent: #3333e6;
+  --card: rgba(255, 255, 255, 0.72);
+  --line: #d6d1f5;
+  --blob1: rgba(124, 108, 240, 0.38);
+  --blob2: rgba(150, 120, 250, 0.28);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0b1d;
+    --ink: #f2f0ff;
+    --soft: #a8a4cf;
+    --accent: #8c8cff;
+    --card: rgba(255, 255, 255, 0.06);
+    --line: rgba(255, 255, 255, 0.14);
+    --blob1: rgba(91, 91, 240, 0.35);
+    --blob2: rgba(139, 92, 246, 0.25);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Outfit", "Quicksand", ui-rounded, "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(60vmax 60vmax at 4% 8%, var(--blob1), transparent 62%),
+    radial-gradient(52vmax 52vmax at 98% 86%, var(--blob2), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
+  line-height: 1.5;
+}
+.wrap { max-width: 1040px; margin: 0 auto; padding: 28px 24px 64px; }
+nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.brand, .menu {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  padding: 0.55rem 1.1rem; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+}
+.brand { font-weight: 600; color: var(--ink); text-decoration: none; }
+.brand svg { width: 22px; height: 22px; stroke: var(--accent); }
+.menu { gap: 1.4rem; }
+.menu a { color: var(--ink); text-decoration: none; font-weight: 500; font-size: 0.95rem; }
+.menu a:hover { color: var(--accent); }
+h1 { font-size: clamp(2.6rem, 7vw, 5rem); line-height: 1.04; letter-spacing: -0.025em; font-weight: 600; margin: 4rem 0 1rem; }
+h1 .accent { color: var(--accent); }
+.lead { font-size: 1.15rem; color: var(--soft); max-width: 34rem; margin: 0 0 2rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 2.4rem; }
+.btn {
+  display: inline-flex; padding: 0.85rem 1.6rem; border-radius: 999px;
+  background: var(--accent); color: #fff; font-weight: 600; text-decoration: none;
+  border: 1px solid var(--accent); transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(51, 51, 230, 0.3); }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.stats { display: flex; flex-wrap: wrap; }
+.stat { padding: 0 1.4rem; border-left: 1px solid var(--line); }
+.stat:first-child { padding-left: 0; border-left: 0; }
+.stat b { display: block; font-size: 1.5rem; font-weight: 600; }
+.stat span { font-size: 0.8rem; color: var(--soft); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 3rem; }
+.card { padding: 1.4rem; border-radius: 16px; background: var(--card); border: 1px solid var(--line); backdrop-filter: blur(8px); }
+.card h3 { margin: 0 0 0.4rem; }
+.card p { margin: 0; color: var(--soft); font-size: 0.95rem; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; background: var(--card); border: 1px solid var(--line); padding: 0.05rem 0.4rem; border-radius: 6px; }
+footer { margin-top: 3rem; color: var(--soft); font-size: 0.85rem; }

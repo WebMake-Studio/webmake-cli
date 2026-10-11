@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Blog · WebMake CLI demo</title>
+  <!-- Copyright (c) 2026 Rafael ISTE. Released under the MIT License. -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="/">WebMake CLI</a>
+      <div class="menu"><a href="/">Home</a></div>
+    </nav>
+    <h1>A rewritten <span class="accent">page</span></h1>
+    <p class="lead">Every <code>/blog/*</code> URL is served by this single file (status 200, the address bar keeps the original URL). Path shown by JavaScript: <code id="path"></code></p>
+    <div class="actions"><a class="btn" href="/">Back to home</a></div>
+    <footer>© 2026 FarTekTV · Rafael ISTE</footer>
+  </div>
+  <script>document.getElementById('path').textContent = location.pathname;</script>
+</body>
+</html>

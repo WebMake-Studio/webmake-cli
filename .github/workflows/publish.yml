@@ -1,0 +1,25 @@
+# WebMake CLI - Copyright (c) 2026 Rafael ISTE (FarTekTV) - MIT License
+# Publishes to npm when a GitHub Release is published.
+# Requires a repository secret named NPM_TOKEN (granular token, bypass 2FA, write access to webmake-cli).
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - run: npm test
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

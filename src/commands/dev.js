@@ -1,221 +1,187 @@
-const { loadConfig } = require('../utils/config');
-const { createLiveReload } = require('../core/livereload');
-const { createServer } = require('../core/server');
-const { createWatcher } = require('../core/watcher');
-const { logger, bold, blue, cyan, dim, green, magenta, white } = require('../utils/logger');
-const { ensureDirectory, parseBool, parsePort, printError, CliError } = require('../utils/cli');
+/*! WebMake CLI - Copyright (c) 2026 Rafael ISTE - MIT License */
+'use strict';
 
-const PANEL_WIDTH = 78;
-const WEBMAKE_WORDMARK = [
-    '██╗    ██╗███████╗██████╗ ███╗   ███╗ █████╗ ██╗  ██╗███████╗',
-    '██║    ██║██╔════╝██╔══██╗████╗ ████║██╔══██╗██║ ██╔╝██╔════╝',
-    '██║ █╗ ██║█████╗  ██████╔╝██╔████╔██║███████║█████╔╝ █████╗  ',
-    '██║███╗██║██╔══╝  ██╔══██╗██║╚██╔╝██║██╔══██║██╔═██╗ ██╔══╝  ',
-    '╚███╔███╔╝███████╗██████╔╝██║ ╚═╝ ██║██║  ██║██║  ██╗███████╗',
-    ' ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝',
-];
+const fs = require('node:fs');
+const path = require('node:path');
+const readline = require('node:readline');
 
-function stripAnsi(value) {
-    return String(value).replace(/\x1b\[[0-9;]*m/g, '');
-}
+const ui = require('../ui');
+const { c, log } = ui;
+const { resolveSettings } = require('../config');
+const { loadRuleset, isConfigFileName, WEBMAKE_FILES } = require('../detect');
+const { createDevServer } = require('../server');
+const { createWatcher, createIgnore } = require('../watcher');
+const { buildUrls } = require('../net');
+const { openBrowser } = require('../open');
+const { WebMakeError } = require('../errors');
+const { displayPath, plural } = require('../util');
 
-function visibleLength(value) {
-    return stripAnsi(value).length;
-}
-
-function fit(value, width) {
-    const text = String(value);
-    const length = visibleLength(text);
-    if (length <= width) return text + ' '.repeat(width - length);
-    const plain = stripAnsi(text);
-    return plain.slice(0, Math.max(0, width - 1)) + '…';
-}
-
-function panelLine(content = '') {
-    const innerWidth = PANEL_WIDTH - 4;
-    console.log(`  ${magenta('|')} ${fit(content, innerWidth)} ${magenta('|')}`);
-}
-
-function panelRule(top = false) {
-    const cornerLeft = top ? '.' : '\'';
-    const cornerRight = top ? '.' : '\'';
-    console.log(`  ${magenta(cornerLeft + '-'.repeat(PANEL_WIDTH - 2) + cornerRight)}`);
-}
-
-function prettyPath(filePath) {
-    const path = require('path');
-    const relative = path.relative(process.cwd(), filePath);
-    if (!relative) return '.';
-    return !relative.startsWith('..') ? `.${path.sep}${relative}` : filePath;
-}
-
-function padLabel(label) {
-    return dim(String(label).padEnd(12));
-}
-
-function statusPill(label, active = true) {
-    return active ? green(label) : dim(label);
-}
-
-function statusLine(label, value, active = true) {
-    const dot = active ? blue('*') : dim('*');
-    return `${dot} ${white(label.padEnd(13))} ${value}`;
-}
-
-function printDevPanel(state) {
-    logger.blank();
-    panelRule(true);
-    panelLine(`${dim('Welcome to')} ${blue(bold('WebMake'))} ${dim('command-line studio')}`);
-    panelLine();
-    for (const line of WEBMAKE_WORDMARK) {
-        panelLine(blue(line));
+function bindKeys(handlers) {
+  const stdin = process.stdin;
+  if (!stdin.isTTY || typeof stdin.setRawMode !== 'function') return () => {};
+  readline.emitKeypressEvents(stdin);
+  stdin.setRawMode(true);
+  stdin.resume();
+  const onKey = (str, key = {}) => {
+    if (key.ctrl && key.name === 'c') return handlers.quit();
+    if (key.ctrl || key.meta) return undefined;
+    switch (key.name) {
+      case 'o': return handlers.open();
+      case 'r': return handlers.reload();
+      case 'u': return handlers.urls();
+      case 'c': return handlers.clear();
+      case 'q': return handlers.quit();
+      case 'h': return handlers.help();
+      default: return undefined;
     }
-    panelLine();
-    panelLine(`${dim('Serve, watch and preview static sites with Netlify-style routing.')}`);
-    panelLine();
-    panelLine(statusLine('Local URL', cyan(state.url)));
-    panelLine(statusLine('Serving', white(prettyPath(state.rootDir))));
-    panelLine(statusLine('Watching', white(prettyPath(state.watchedDir))));
-    panelLine(statusLine('Live reload', statusPill('enabled')));
-    panelLine(statusLine('Netlify', statusPill(`${state.redirectCount} rules`, state.redirectCount > 0), state.redirectCount > 0));
-    if (state.spa) panelLine(statusLine('SPA fallback', statusPill('enabled')));
-    if (state.poll) panelLine(statusLine('Polling', statusPill('enabled')));
-    panelLine(statusLine('Indexed', `${white(`${state.fileCount} files`)} ${dim(`in ${state.folderCount} folders`)}`));
-    panelLine();
-    panelLine(`${dim('Ctrl+C')} ${white('stop')}  ${dim('|')}  ${dim('Edit files to reload the browser')}`);
-    panelRule(false);
-    logger.blank();
+  };
+  stdin.on('keypress', onKey);
+  return () => {
+    stdin.off('keypress', onKey);
+    try { stdin.setRawMode(false); } catch { }
+    stdin.pause();
+  };
 }
 
-function openBrowser(url) {
-    const { spawn } = require('child_process');
-    const command = process.platform === 'win32'
-        ? 'cmd'
-        : process.platform === 'darwin'
-            ? 'open'
-            : 'xdg-open';
-    const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
-    const child = spawn(command, args, { detached: true, stdio: 'ignore' });
-    child.unref();
+function routingSummary(ruleset) {
+  if (!ruleset.files.length) return c.muted('no redirect file detected');
+  return ruleset.files
+    .map((f) => {
+      const parts = [];
+      if (f.rules) parts.push(plural(f.rules, 'rule'));
+      if (f.headers) parts.push(plural(f.headers, 'header block'));
+      return `${path.basename(f.rel)} ${c.muted(`(${parts.join(', ') || 'empty'})`)}`;
+    })
+    .join(c.muted(' · '));
 }
 
-module.exports = function dev(flags = {}) {
-    const config = loadConfig(flags.config);
-    const port = parsePort(flags.port || config.port || 3000);
-    const host = flags.host || config.host || '127.0.0.1';
-    const dir = flags.dir || config.dir || '.';
-    const watchDir = flags.watch || config.watch || dir;
-    const spa = parseBool(flags.spa ?? config.spa, 'spa');
-    const poll = parseBool(flags.poll ?? config.poll, 'poll');
-    const shouldOpen = parseBool(flags.open ?? config.open, 'open');
-    const rootDir = ensureDirectory(dir, 'Directory to serve');
-    const watchedDir = ensureDirectory(watchDir, 'Directory to watch');
-    const liveReload = createLiveReload();
+async function dev({ flags, positionals, cwd }) {
+  if (positionals[0]) flags.dir = positionals[0];
+  const started = Date.now();
+  const settings = resolveSettings({ cwd, flags });
+  ui.setQuiet(settings.quiet);
 
-    const server = createServer({
-        dir: rootDir,
-        host,
-        port,
-        spa,
-        liveReload,
+  let rootStat = null;
+  try { rootStat = fs.statSync(settings.root); } catch { }
+  if (!rootStat || !rootStat.isDirectory()) {
+    throw new WebMakeError(`Directory not found: ${displayPath(cwd, settings.root)}`, {
+      hint: 'Create it, run the command from your project folder, or pass --dir <folder>.',
     });
+  }
 
-    const watcher = createWatcher(watchedDir, {
-        ignoreInitial: true,
-        ignored: config.ignore,
-        poll,
-    });
-    const readyState = {
-        server: false,
-        watcher: false,
-        url: null,
-        rootDir,
-        watchedDir,
-        redirectCount: 0,
-        fileCount: 0,
-        folderCount: 0,
-        spa,
-        poll,
-        printed: false,
-    };
+  ui.printBanner();
+  for (const w of settings.warnings) log.warn(w);
 
-    function maybePrintReady() {
-        if (readyState.printed || !readyState.server || !readyState.watcher) return;
-        readyState.printed = true;
-        printDevPanel(readyState);
-        if (shouldOpen) openBrowser(readyState.url);
+  let ruleset = loadRuleset(settings);
+  for (const w of ruleset.warnings) log.warn(w);
+  if (ruleset.skipped.length) {
+    log.warn(`${plural(ruleset.skipped.length, 'rule')} cannot be evaluated in dev and ${ruleset.skipped.length === 1 ? 'was' : 'were'} skipped - run "webmake routes" for details.`);
+  }
+
+  const app = createDevServer({
+    settings,
+    getRuleset: () => ruleset,
+    onRequest: (entry) => log.request(entry),
+  });
+
+  const { port, host, notices } = await app.listen();
+  for (const n of notices) log.warn(n);
+  const urls = buildUrls(host, port);
+
+  const label = (t) => c.muted(t.padEnd(9));
+  const features = [
+    settings.spa ? 'SPA fallback' : null,
+    settings.livereload ? 'live reload' : null,
+    settings.cleanUrls ? 'clean URLs' : null,
+    settings.cors ? 'CORS' : null,
+  ].filter(Boolean).join(' · ');
+
+  const printReady = () => {
+    log.raw('');
+    log.success(`${c.bold('Ready')} in ${Date.now() - started} ms`);
+    log.raw('');
+    if (urls.local) log.raw(`  ${c.brand('➜')}  ${label('Local')} ${c.bold(c.soft(urls.local))}`);
+    for (const n of urls.network) log.raw(`  ${c.brand('➜')}  ${label('Network')} ${c.soft(n)}`);
+    log.raw(`  ${c.brand('➜')}  ${label('Serving')} ${displayPath(cwd, settings.root)}${features ? c.muted(`  (${features})`) : ''}`);
+    log.raw(`  ${c.brand('➜')}  ${label('Config')} ${settings.configFile ? path.basename(settings.configFile) : c.muted('none (defaults) - run "webmake init" to create webmake.dev')}`);
+    log.raw(`  ${c.brand('➜')}  ${label('Routing')} ${routingSummary(ruleset)}`);
+    if (process.stdin.isTTY) log.raw(`\n  ${c.muted('press')} ${c.soft('o')} ${c.muted('open ·')} ${c.soft('r')} ${c.muted('reload ·')} ${c.soft('u')} ${c.muted('urls ·')} ${c.soft('c')} ${c.muted('clear ·')} ${c.soft('q')} ${c.muted('quit')}`);
+    log.raw('');
+  };
+  printReady();
+
+  const watchPaths = new Set(settings.watch);
+  for (const f of ruleset.files) watchPaths.add(f.abs);
+  const ignore = createIgnore({ extra: settings.ignore, out: settings.out, base: settings.cwd, roots: settings.watch });
+
+  let watcher = null;
+  const toUrl = (file) => `/${path.relative(settings.root, file).split(path.sep).join('/')}`;
+  const inRoot = (file) => !path.relative(settings.root, file).startsWith('..');
+
+  const onChange = (events) => {
+    const names = events.slice(0, 3).map((e) => displayPath(cwd, e.file)).join(', ');
+    const more = events.length > 3 ? ` +${events.length - 3} more` : '';
+    log.event(`${events[0].type === 'add' ? 'added' : events[0].type === 'unlink' ? 'removed' : 'changed'} ${c.soft(names)}${c.muted(more)}`);
+
+    if (events.some((e) => WEBMAKE_FILES.includes(path.basename(e.file).toLowerCase()))) {
+      log.warn('Configuration file changed - restart "webmake dev" to apply it.');
     }
+    if (events.some((e) => isConfigFileName(path.basename(e.file)))) {
+      ruleset = loadRuleset(settings);
+      for (const w of ruleset.warnings) log.warn(w);
+      log.event(`routing reloaded (${plural(ruleset.rules.length, 'rule')}, ${plural(ruleset.headers.length, 'header block')})`);
+    }
+    const onlyCss = events.every((e) => e.type === 'change' && /\.css$/i.test(e.file) && inRoot(e.file));
+    if (onlyCss) events.forEach((e) => app.broadcast('css', { path: toUrl(e.file) }));
+    else app.broadcast('reload', { files: events.map((e) => (inRoot(e.file) ? toUrl(e.file) : null)).filter(Boolean) });
+  };
 
-    watcher.on('all', (event, filePath) => {
-        logger.file(`${event}: ${filePath}`);
-        liveReload.reload(filePath);
+  if (watchPaths.size) {
+    watcher = createWatcher({
+      paths: [...watchPaths],
+      ignore,
+      poll: settings.poll,
+      interval: settings.pollInterval,
+      onChange,
+      onWarn: (m) => log.warn(m),
     });
+  }
 
-    watcher.on('ready', () => {
-        const watched = watcher.getWatched();
-        const folderCount = Object.keys(watched).length;
-        const fileCount = Object.values(watched).reduce((total, files) => total + files.length, 0);
-        readyState.watcher = true;
-        readyState.fileCount = fileCount;
-        readyState.folderCount = folderCount;
-        maybePrintReady();
+  const openUrl = () => {
+    const base = urls.primary;
+    const target = typeof settings.open === 'string' ? base + settings.open.replace(/^\/+/, '') : base;
+    return openBrowser(target).then((ok) => {
+      if (!ok) log.info(`Could not launch a browser automatically. Open ${c.soft(target)} yourself.`);
     });
+  };
+  if (settings.open && !process.env.CI) openUrl();
 
-    watcher.on('error', error => {
-        printError(new CliError('File watcher failed.', {
-            hint: error.message,
-        }));
-    });
+  let closing = false;
+  let unbindKeys = () => {};
+  const shutdown = async (code = 0) => {
+    if (closing) return;
+    closing = true;
+    unbindKeys();
+    log.raw(`\n  ${c.muted('Shutting down…')}`);
+    if (watcher) watcher.close();
+    const force = setTimeout(() => process.exit(code), 1500);
+    force.unref();
+    await app.close();
+    process.exit(code);
+  };
 
-    server.listen(port, host, () => {
-        const url = `http://${host}:${port}`;
-        readyState.server = true;
-        readyState.url = url;
-        readyState.rootDir = server.rootDir;
-        readyState.redirectCount = server.redirectRules.length;
-        maybePrintReady();
-    });
+  unbindKeys = bindKeys({
+    open: openUrl,
+    reload: () => { app.broadcast('reload'); log.event('reload sent to browsers'); },
+    urls: () => printReady(),
+    clear: () => { process.stdout.write('\u001b[2J\u001b[3J\u001b[H'); ui.printBanner(); printReady(); },
+    help: () => log.raw(`\n  ${c.muted('o open · r reload · u urls · c clear · q quit')}\n`),
+    quit: () => shutdown(0),
+  });
+  process.once('SIGINT', () => shutdown(0));
+  process.once('SIGTERM', () => shutdown(0));
 
-    server.on('error', error => {
-        const cliError = error.code === 'EADDRINUSE'
-            ? new CliError(`Port ${port} is already in use.`, {
-                hint: 'Stop the other process or choose another port.',
-                example: 'webmake dev --port=3001',
-            })
-            : error.code === 'EACCES'
-                ? new CliError(`Permission denied for ${host}:${port}.`, {
-                    hint: 'Try a port above 1024, for example --port=3000.',
-                })
-                : error;
+  return { close: () => shutdown(0), app, settings, urls };
+}
 
-        printError(cliError);
-        process.exit(cliError.code || 1);
-    });
-
-    let stopping = false;
-    const shutdown = async () => {
-        if (stopping) return;
-        stopping = true;
-
-        logger.blank();
-        console.log(`  ${blue('WebMake')} ${dim('Stopping studio...')}`);
-        await watcher.close();
-        await liveReload.close();
-
-        const closed = new Promise(resolve => {
-            const close = typeof server.closeNow === 'function' ? server.closeNow.bind(server) : server.close.bind(server);
-            close(resolve);
-        });
-
-        await Promise.race([
-            closed,
-            new Promise(resolve => setTimeout(resolve, 500)),
-        ]);
-
-        console.log(`  ${green('done')} ${dim('Server stopped')}`);
-        process.exit(0);
-    };
-
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
-};
+module.exports = { dev };

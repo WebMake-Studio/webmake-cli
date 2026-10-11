@@ -1,0 +1,8 @@
+# WebMake CLI demo - Copyright (c) 2026 Rafael ISTE
+# Format: <from> [query params] <to> [status][!]
+# First matching rule wins. Normal rules never hide a real file; add "!" to force.
+
+/old-page          /about            301
+/news/*            /blog/:splat      302
+/blog/*            /blog.html        200
+/docs              https://example.com/docs  302

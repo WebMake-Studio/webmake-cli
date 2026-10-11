@@ -1,88 +1,79 @@
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('../utils/logger');
-const { CliError } = require('../utils/cli');
+/*! WebMake CLI - Copyright (c) 2026 Rafael ISTE - MIT License */
+'use strict';
 
-function writeFileOnce(filePath, content) {
-    if (fs.existsSync(filePath)) return false;
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, content);
-    return true;
-}
+const fs = require('node:fs');
+const path = require('node:path');
 
-module.exports = function init(flags = {}) {
-    const name = flags.name || flags._[0] || 'webmake-site';
-    if (!/^[a-zA-Z0-9._-]+$/.test(name)) {
-        throw new CliError(`Invalid project name: ${name}`, {
-            hint: 'Use only letters, numbers, dots, dashes, or underscores.',
-            example: 'webmake init --name=my-site',
-        });
-    }
+const ui = require('../ui');
+const { c, log } = ui;
+const { WebMakeError } = require('../errors');
 
-    const target = path.resolve(process.cwd(), flags.dir || name);
-    const existingFiles = fs.existsSync(target) ? fs.readdirSync(target) : [];
+const TEMPLATE = `/**
+ * webmake.dev - WebMake CLI configuration
+ * Copyright (c) 2026 Rafael ISTE
+ *
+ * Every option is optional: delete what you do not need.
+ * Command line flags always win over this file (example: webmake dev --port 3000).
+ */
+module.exports = {
+  // Folder to serve.
+  dir: './',
 
-    if (existingFiles.length > 0) {
-        throw new CliError(`Target directory is not empty: ${target}`, {
-            hint: 'Choose another --name or --dir to avoid overwriting files.',
-            example: 'webmake init --name=my-new-site',
-        });
-    }
-
-    fs.mkdirSync(target, { recursive: true });
-
-    const files = [
-        ['index.html', `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${name}</title>
-  <link rel="stylesheet" href="./assets/style.css">
-</head>
-<body>
-  <main>
-    <h1>${name}</h1>
-    <p>Your WebMake project is ready.</p>
-  </main>
-  <script src="./assets/app.js"></script>
-</body>
-</html>
-`],
-        ['assets/style.css', `body {
-  margin: 0;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #172033;
-  background: #f4f7fb;
-}
-
-main {
-  text-align: center;
-}
-`],
-        ['assets/app.js', `console.log('WebMake project ready');
-`],
-        ['webmake.config.js', `module.exports = {
-  dir: '.',
+  // Folder written by "webmake build".
   out: './dist',
-  port: 3000,
-  host: '127.0.0.1',
+
+  // Port to listen on. If it is busy, the next free port is used
+  // (set strictPort: true to fail instead).
+  port: 8888,
+
+  // IPv4 address to bind. "0.0.0.0" = every network interface (reachable
+  // from your phone / other computers); "127.0.0.1" = this computer only.
+  host: '0.0.0.0',
+
+  // Path(s) watched for changes (live reload). Defaults to "dir".
+  watch: '.',
+
+  // Use polling instead of native file events (network drives, Docker, WSL).
+  // true or an interval in milliseconds, e.g. 500.
+  poll: false,
+
+  // Single-page app mode: unknown URLs without a file extension serve
+  // index.html (or 200.html). You can also give a file: spa: 'app.html'.
   spa: false,
+
+  // Open the browser on start. true, false or a path such as '/docs/'.
+  open: true,
+
+  // More options (defaults shown):
+  // cleanUrls: true,      // /about serves about.html
+  // livereload: true,     // refresh the browser when files change
+  // listing: true,        // list folders that have no index.html
+  // cors: false,          // send "Access-Control-Allow-Origin: *"
+  // strictPort: false,
+  // ignore: ['tmp', 'src/generated'],   // paths the watcher must ignore
+  // notFound: '404.html', // custom 404 page
+  //
+  // Extra redirects, evaluated BEFORE _redirects / netlify.toml / ...
+  // redirects: [
+  //   { from: '/old', to: '/new', status: 301 },
+  //   { from: '/app/*', to: '/index.html', status: 200 },
+  // ],
+  //
+  // Extra response headers:
+  // headers: [
+  //   { for: '/*', values: { 'X-Frame-Options': 'DENY' } },
+  // ],
 };
-`],
-    ];
+`;
 
-    let created = 0;
-    for (const [fileName, content] of files) {
-        if (writeFileOnce(path.join(target, fileName), content)) created += 1;
-    }
+async function init({ flags, cwd }) {
+  const target = path.join(cwd, 'webmake.dev');
+  if (fs.existsSync(target) && !flags.force) {
+    throw new WebMakeError('webmake.dev already exists.', { hint: 'Use "webmake init --force" to overwrite it.' });
+  }
+  fs.writeFileSync(target, TEMPLATE, 'utf8');
+  log.success(`Created ${c.bold('webmake.dev')}`);
+  log.raw(`  ${c.muted('Edit it, then run')} ${c.soft('webmake dev')}`);
+}
 
-    logger.success(`Created ${created} files in ${target}`);
-    logger.info(`Next: cd ${path.relative(process.cwd(), target) || '.'}`);
-    logger.info('Then: webmake dev --dir=.');
-};
-
-module.exports.writeFileOnce = writeFileOnce;
+module.exports = { init, TEMPLATE };

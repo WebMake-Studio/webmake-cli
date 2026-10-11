@@ -1,0 +1,7 @@
+# WebMake CLI demo - Copyright (c) 2026 Rafael ISTE
+/*
+  X-Demo: served-by-webmake-cli
+  X-Frame-Options: DENY
+
+/css/*
+  Cache-Control: no-store

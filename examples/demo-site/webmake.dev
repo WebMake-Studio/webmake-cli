@@ -1,0 +1,14 @@
+/**
+ * WebMake CLI demo configuration
+ * Copyright (c) 2026 Rafael ISTE
+ */
+module.exports = {
+  dir: './',
+  out: './dist',
+  port: 8888,
+  host: '0.0.0.0',
+  watch: '.',
+  poll: false,
+  spa: false,
+  open: true,
+};
