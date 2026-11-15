@@ -3,7 +3,7 @@
 All notable changes to WebMake CLI are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
-Copyright (c) 2026 Rafael ISTE · FarTekTV
+Copyright (c) 2026 Rafael ISTE · Joan
 
 ## [2.0.0] - 2026-10-10
 
